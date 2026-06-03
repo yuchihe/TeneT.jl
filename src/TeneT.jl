@@ -74,6 +74,7 @@ include("boundary_algorithm/vumps/general.jl")
 include("boundary_algorithm/vumps/plaquette.jl")
 include("boundary_algorithm/vumps/c4v.jl")
 include("boundary_algorithm/qrctm.jl")
+include("boundary_algorithm/c3v_qrctmrg.jl")
 
 # ============================================================================
 # Hamiltonian models
@@ -82,8 +83,10 @@ include("boundary_algorithm/qrctm.jl")
 include("models/basic_op.jl")
 include("models/basic_interactions.jl")
 include("models/Heisenberg/energy.jl")
+include("models/Heisenberg/c3v_energy.jl")
 include("models/Heisenberg/order_init.jl")
 include("models/Kitaev/energy.jl")
+include("models/Kitaev/c3v_energy.jl")
 include("models/Kitaev/order_init.jl")
 include("models/J1J2/energy.jl")
 include("models/J1J2/order_init.jl")
@@ -120,13 +123,14 @@ include("ipeps_optimize/optimize.jl")
 
 export VUMPS
 export QRCTM
+export C3vQRCTMRG
 
 export Square, Honeycomb, Kagome
-export General, C4v, Plaquette
+export General, C3v, C4v, Plaquette
 
 export CheckpointMethod, Plain, Recompute, OffloadRecompute, Offload
 
-export C4v_restriction, local_min_norm
+export C4v_restriction, C3vKitaev_restriction, C3vHeisenberg_restriction, local_min_norm
 
 export init_ipeps, init_ipeps_perturbation, init_ipeps_SU, init_ipeps_from_1x1
 export GradientOptimize, optimise_ipeps

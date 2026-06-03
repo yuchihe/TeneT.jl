@@ -345,6 +345,141 @@
         end
 
         # ==================================================================
+        # C3v QRCTMRG
+        # ==================================================================
+        @testset "C3v QRCTMRG" begin
+            D3, d3, chi3 = 2, 2, 4
+            M_c3v = StructArray([atype(rand(ComplexF64, D3, D3, D3, d3))], [1;;])
+            alg_c3v = C3vQRCTMRG(; verbosity=0, maxiter=2, miniter=0,
+                                  maxiter_ad=1, miniter_ad=0,
+                                  tol=1e-8)
+
+            @testset "init returns C3vCTMEnv" begin
+                rt = init_env(M_c3v, chi3, alg_c3v)
+                @test rt isa C3vCTMEnv
+                @test size(rt.C) == (chi3, chi3)
+                @test size(rt.R) == (chi3, D3, D3, chi3)
+            end
+
+            @testset "step and ObsEnv" begin
+                rt = init_env(M_c3v, chi3, alg_c3v)
+                rt, err = leading_boundary(rt, M_c3v, alg_c3v)
+                @test rt isa C3vCTMEnv
+                @test isfinite(real(err))
+                @test ObsEnv(rt, M_c3v, alg_c3v) isa C3vCTMEnv
+            end
+
+            @testset "two-site init, step, and ObsEnv" begin
+                M_c3v2 = StructArray([
+                    atype(rand(ComplexF64, D3, D3, D3, d3)),
+                    atype(rand(ComplexF64, D3, D3, D3, d3)),
+                ], [1 2])
+                rt = init_env(M_c3v2, chi3, alg_c3v)
+                @test rt isa C3vTwoSiteCTMEnv
+                @test size(rt.CA) == (chi3, chi3)
+                @test size(rt.RA) == (chi3, D3, D3, chi3)
+                @test size(rt.CB) == (chi3, chi3)
+                @test size(rt.RB) == (chi3, D3, D3, chi3)
+
+                rt, err = leading_boundary(rt, M_c3v2, alg_c3v)
+                @test rt isa C3vTwoSiteCTMEnv
+                @test isfinite(real(err))
+                @test ObsEnv(rt, M_c3v2, alg_c3v) isa C3vTwoSiteCTMEnv
+            end
+
+            @testset "Kitaev C3v energy smoke" begin
+                model = Kitaev(lattice=Honeycomb(:c3v),
+                               S=0.5, Jx=-1.0, Jy=-1.0, Jz=-1.0)
+                params = GradientOptimize(model=model,
+                                          pattern=[1;;],
+                                          boundary_alg=alg_c3v,
+                                          ifload_env=false,
+                                          ifsave_env=false,
+                                          ifplot=false,
+                                          ifprecondition=false,
+                                          verbosity=0)
+                rt = init_env(M_c3v, chi3, alg_c3v)
+                rt, _ = leading_boundary(rt, M_c3v, alg_c3v)
+                e, e_dict = energy_value(model, M_c3v, rt, params)
+                @test isfinite(real(e))
+                @test haskey(e_dict, "bond_Kitaev_C3v_energy")
+            end
+
+            @testset "Heisenberg C3v energy smoke" begin
+                model = Heisenberg(lattice=Honeycomb(:c3v),
+                                   S=0.5, Jx=1.0, Jy=1.0, Jz=1.0,
+                                   ifrotate=true)
+                params = GradientOptimize(model=model,
+                                          pattern=[1;;],
+                                          boundary_alg=alg_c3v,
+                                          ifload_env=false,
+                                          ifsave_env=false,
+                                          ifplot=false,
+                                          ifprecondition=false,
+                                          verbosity=0)
+                rt = init_env(M_c3v, chi3, alg_c3v)
+                rt, _ = leading_boundary(rt, M_c3v, alg_c3v)
+                e, e_dict = energy_value(model, M_c3v, rt, params)
+                @test isfinite(real(e))
+                @test haskey(e_dict, "bond_Heisenberg_C3v_energy")
+            end
+
+            @testset "Heisenberg C3v rotated product sign" begin
+                Aprod = zeros(Float64, 1, 1, 1, 2, 1)
+                Aprod[1, 1, 1, 1, 1] = 1.0
+                alg_prod = C3vQRCTMRG(; maxiter=3, miniter=0, maxiter_ad=0,
+                                       tol=1e-12, verbosity=0)
+
+                function product_energy(ifrotate)
+                    model = Heisenberg(lattice=Honeycomb(:c3v),
+                                       S=0.5, Jx=1.0, Jy=1.0, Jz=1.0,
+                                       ifrotate=ifrotate)
+                    params = GradientOptimize(model=model,
+                                              pattern=[1;;],
+                                              boundary_alg=alg_prod,
+                                              ifload_env=false,
+                                              ifsave_env=false,
+                                              ifplot=false,
+                                              ifprecondition=false,
+                                              verbosity=0)
+                    M = build_A(Aprod, params)
+                    rt = init_env(M, 1, alg_prod)
+                    rt, _ = leading_boundary(rt, M, alg_prod)
+                    e, _ = energy_value(model, M, rt, params)
+                    return real(e)
+                end
+
+                @test product_energy(false) ≈ 0.375 atol=1e-12
+                @test product_energy(true) ≈ -0.375 atol=1e-12
+            end
+            @testset "J1J2p C3v two-site energy smoke" begin
+                model = J1J2p(lattice=Honeycomb(:c3v),
+                              S=0.5, J1=1.0, J2p=0.3,
+                              ifrotate=false,
+                              couplingtype=:uniform, bondratio=1.0)
+                params = GradientOptimize(model=model,
+                                          pattern=[1 2],
+                                          boundary_alg=alg_c3v,
+                                          ifload_env=false,
+                                          ifsave_env=false,
+                                          ifplot=false,
+                                          ifprecondition=false,
+                                          verbosity=0)
+                M_c3v2 = StructArray([
+                    atype(rand(ComplexF64, D3, D3, D3, d3)),
+                    atype(rand(ComplexF64, D3, D3, D3, d3)),
+                ], [1 2])
+                rt = init_env(M_c3v2, chi3, alg_c3v)
+                @test rt isa C3vTwoSiteCTMEnv
+                rt, _ = leading_boundary(rt, M_c3v2, alg_c3v)
+                e, e_dict = energy_value(model, M_c3v2, rt, params)
+                @test isfinite(real(e))
+                @test haskey(e_dict, "bond_J1_C3v_energy")
+                @test haskey(e_dict, "bond_J2p_C3v_energy")
+            end
+        end
+
+        # ==================================================================
         # Environment helpers
         # ==================================================================
         @testset "environment helpers" begin

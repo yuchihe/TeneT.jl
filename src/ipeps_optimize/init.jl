@@ -52,6 +52,8 @@ end
 _init_random_ipeps(::Square, etype, D, d, N, Ni, Nj) =
     rand(etype, D, D, D, D, d, N) .+ 1
 
+_ipeps_virtual_dim(A) = ndims(A) == 5 ? maximum(size(A)[1:3]) : maximum(size(A)[1:4])
+
 _init_random_ipeps(::Kagome{:merge}, etype, D, d, N, Ni, Nj) =
     rand(etype, D, D, D, D, d^3, N) .+ 1
 
@@ -67,6 +69,11 @@ end
 
 function _init_random_ipeps(::Honeycomb{:merge}, etype, D, d, N, Ni, Nj)
     rand(etype, D, D, D, D, d^2, N) .+ 1
+end
+
+function _init_random_ipeps(::Honeycomb{:c3v}, etype, D, d, N, Ni, Nj)
+    N in (1, 2) || throw(ArgumentError("Honeycomb{:c3v} supports one- or two-site unit cells, got N=$N."))
+    rand(etype, D, D, D, d, N) .+ 1
 end
 
 function _init_random_ipeps(::Honeycomb{:brickwall_h}, etype, D, d, N, Ni, Nj)

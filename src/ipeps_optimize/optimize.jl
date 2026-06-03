@@ -55,7 +55,8 @@ function _imag_error_op(A, params)
     iSy = real(1im * const_Sy(params.model.S))
     d = size(iSy, 1)
     Id = Matrix{Float64}(I, d, d)
-    n_sites = round(Int, log(d, size(A[1], 5)))
+    dphys = ndims(A[1]) == 4 ? size(A[1], 4) : size(A[1], 5)
+    n_sites = round(Int, log(d, dphys))
     return _arraytype(A[1])(reduce(kron, fill(Id, n_sites - 1); init = iSy))
 end
 
@@ -67,6 +68,9 @@ Dispatch on `env` type: each boundary contraction (General VUMPS,
 Plaquette VUMPS, C4v, ...) implements its own version in its own file.
 """
 function imag_error end
+
+_imag_stop_tol() = parse(Float64, get(ENV, "TENET_EIMAG_STOP_TOL", "1e-8"))
+_energy_delta_stop_tol() = parse(Float64, get(ENV, "TENET_ENERGY_DELTA_STOP_TOL", "1e-12"))
 
 # ============================================================================
 # LBFGS inner product
@@ -128,7 +132,9 @@ function _finalize!(x, f, g, iter, rt, rt′, D, χ, params, t0, fδEierr)
         save(joinpath(ipeps_dir, "No.$(iter).jld2"), "bcipeps", Array(x); iotype=IOStream)
     end
 
-    if abs(fδEierr[2]) < 1e-12 || abs(fδEierr[4]) > 1e-8
+    delta_stop_tol = _energy_delta_stop_tol()
+    if (delta_stop_tol >= 0 && abs(fδEierr[2]) < delta_stop_tol) ||
+       abs(fδEierr[4]) > _imag_stop_tol()
         g .= 0
     end
 
@@ -163,7 +169,7 @@ This loop repeats up to `params.maxiter_restart` times.
 """
 function optimise_ipeps(A, χ::Int, χshift::Int, params::GradientOptimize;
                         restriction_ipeps=_restriction_ipeps)
-    D = maximum(size(A)[1:4])
+    D = _ipeps_virtual_dim(A)
     rt = initialize_env(A, D, χ, params; restriction_ipeps)
     rt′ = deepcopy(rt)
     fδEierr = [1.0, 1.0, 0.0, 0.0]

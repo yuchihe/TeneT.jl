@@ -120,6 +120,24 @@ function ChainRulesCore.rrule(::Type{<:CTMEnv}, C, T)
     return env, back
 end
 
+function ChainRulesCore.rrule(::Type{<:C3vCTMEnv}, C, R)
+    env = C3vCTMEnv(C, R)
+    function back(∂env)
+        ∂C, ∂R = ∂env
+        return NoTangent(), ∂C, ∂R
+    end
+    return env, back
+end
+
+function ChainRulesCore.rrule(::Type{<:C3vTwoSiteCTMEnv}, CA, RA, CB, RB)
+    env = C3vTwoSiteCTMEnv(CA, RA, CB, RB)
+    function back(∂env)
+        ∂CA, ∂RA, ∂CB, ∂RB = ∂env
+        return NoTangent(), ∂CA, ∂RA, ∂CB, ∂RB
+    end
+    return env, back
+end
+
 function ChainRulesCore.rrule(::Type{<:C4vVUMPSEnv}, AL, C, FL)
     env = C4vVUMPSEnv(AL, C, FL)
     function back(∂env)

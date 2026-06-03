@@ -22,6 +22,16 @@ function build_A(A::AbstractArray{T, 6}, params::iPEPSOptimize) where T
     end
 end
 
+function build_A(A::AbstractArray{T, 5}, params::iPEPSOptimize) where T
+    Ar = StructArray([A[:,:,:,:,i] for i in 1:length(unique(params.pattern))], params.pattern)
+    Ar = _lattice_map(Ar, params.model.lattice, params.pattern)
+    if hasproperty(params, :ifSU) && params.ifSU
+        throw(ArgumentError("SU parameterization is not implemented for rank-3-virtual C3v tensors."))
+    else
+        return Ar
+    end
+end
+
 """
     build_A(A, params::iPEPSOptimize, rt)
 
@@ -139,3 +149,4 @@ Merge mapping: identity (sites are already independent tensors on
 the effective square lattice; the merge is encoded in the Hamiltonian).
 """
 _lattice_map(A, ::Honeycomb{:merge}, pattern) = A
+_lattice_map(A, ::Honeycomb{:c3v}, pattern) = A

@@ -135,3 +135,26 @@ QR-based Corner Transfer Matrix algorithm.
     simple_eig_polish_steps::Int = 0
     whole_vumps_etype::Union{Nothing, Type} = nothing
 end
+
+"""
+    C3vQRCTMRG <: Algorithm
+
+QR-based CTMRG algorithm for single-site C3v honeycomb tensors.
+"""
+@kwdef mutable struct C3vQRCTMRG <: Algorithm
+    tol::Float64 = 1e-10
+    maxiter::Int = 100
+    miniter::Int = 1
+    maxiter_ad::Int = 10
+    miniter_ad::Int = 1
+    show_every::Int = 1
+    verbosity::Int = Defaults.verbosity
+
+    ifparallel::Bool = false
+    step_checkpoint::CheckpointMethod = Plain()
+    forloop_iter::Int = 1
+
+    inner_etype::Union{Nothing, Type} = nothing
+    inner_etype_final_steps::Int = 0
+    whole_vumps_etype::Union{Nothing, Type} = nothing
+end

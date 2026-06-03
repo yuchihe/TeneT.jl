@@ -14,6 +14,95 @@ function C4v_restriction(A::AbstractArray{<:Number, 6})
     return A/norm(A) 
 end
 
+function _c3v_kitaev_ops(S, atype)
+    Sx = ComplexF64.(const_Sx(S))
+    Sy = ComplexF64.(const_Sy(S))
+    Sz = ComplexF64.(const_Sz(S))
+    d = size(Sz, 1)
+
+    n = ComplexF64[1, 1, 1] / sqrt(3)
+    sigma_n = n[1] * Sx + n[2] * Sy + n[3] * Sz
+    phase = cis(2pi / 3)
+    U_C3 = (-1)^(d - 1) * phase * exp(1im * (2pi / 3) * sigma_n)
+
+    u = ComplexF64[1, -1, 0] / sqrt(2)
+    v = ComplexF64[1, 1, -2] / sqrt(6)
+    m1 = u
+    m2 = -0.5 * u + (sqrt(3) / 2) * v
+    m3 = -0.5 * u - (sqrt(3) / 2) * v
+    Up(m) = exp(1im * pi * (m[1] * Sx + m[2] * Sy + m[3] * Sz))
+    Up_x = Up(m2) * cis(4pi / 3)
+    Up_y = Up(m3) * cis(2pi / 3)
+    Up_z = Up(m1)
+
+    iSy = zeros(ComplexF64, d, d)
+    twoS = round(Int, 2 * S)
+    for i in 1:d
+        iSy[i, d + 1 - i] = (-1)^(twoS - (i - 1))
+    end
+
+    return atype(U_C3), atype(U_C3 * U_C3), atype(Up_x), atype(Up_y), atype(Up_z), atype(iSy)
+end
+
+function _c3v_kitaev_site_restriction(T::AbstractArray; S=1/2)
+    atype = _arraytype(T)
+    U_C3, U_C3_2, Up_x, Up_y, Up_z, iSy = _c3v_kitaev_ops(S, atype)
+
+    @tensor A1[i,j,k,a] := T[k,i,j,b] * U_C3[a,b]
+    @tensor A2[i,j,k,a] := T[j,k,i,b] * U_C3_2[a,b]
+    @tensor Apx[i,j,k,a] := T[i,k,j,b] * Up_x[a,b]
+    @tensor Apy[i,j,k,a] := T[k,j,i,b] * Up_y[a,b]
+    @tensor Apz[i,j,k,a] := T[j,i,k,b] * Up_z[a,b]
+    Aref = Apx + Apy + Apz
+    @tensor A3[i,j,k,a] := conj(Aref[i,j,k,b]) * iSy[a,b]
+
+    Tsym = T + A1 + A2 + A3
+    return Tsym / norm(Tsym)
+end
+
+"""
+    C3vKitaev_restriction(A; S=1/2)
+
+Impose the local C3v Kitaev ansatz symmetry used by `C3vQRCTMRG`.
+The raw tensor layout is `(D, D, D, d, N)`, with `N=1` or `N=2`.
+"""
+function C3vKitaev_restriction(A::AbstractArray{<:Number, 5}; S=1/2)
+    size(A, 5) in (1, 2) || throw(ArgumentError("C3vKitaev_restriction supports one- or two-site unit cells."))
+    B = Zygote.Buffer(A)
+    for q in 1:size(A, 5)
+        B[:,:,:,:,q] = _c3v_kitaev_site_restriction(A[:,:,:,:,q]; S)
+    end
+    B = copy(B)
+    return B / norm(B)
+end
+
+function _c3v_trivial_site_restriction(T::AbstractArray)
+    Tsym = T +
+           permutedims(T, (2, 3, 1, 4)) +
+           permutedims(T, (3, 1, 2, 4)) +
+           permutedims(T, (1, 3, 2, 4)) +
+           permutedims(T, (3, 2, 1, 4)) +
+           permutedims(T, (2, 1, 3, 4))
+    return Tsym / norm(Tsym)
+end
+
+"""
+    C3vHeisenberg_restriction(A)
+
+Impose the local C3v Heisenberg ansatz with a trivial physical
+representation. The raw tensor layout is `(D, D, D, d, N)`, with `N=1`
+or `N=2`.
+"""
+function C3vHeisenberg_restriction(A::AbstractArray{<:Number, 5})
+    size(A, 5) in (1, 2) || throw(ArgumentError("C3vHeisenberg_restriction supports one- or two-site unit cells."))
+    B = Zygote.Buffer(A)
+    for q in 1:size(A, 5)
+        B[:,:,:,:,q] = _c3v_trivial_site_restriction(A[:,:,:,:,q])
+    end
+    B = copy(B)
+    return B / norm(B)
+end
+
 """
     _restriction_ipeps(A)
 

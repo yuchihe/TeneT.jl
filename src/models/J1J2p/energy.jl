@@ -311,3 +311,56 @@ function energy_value(model::J1J2p{Honeycomb{:brickwall_v}}, A, env::OnesideVUMP
     params.verbosity >= 3 && println("energy per site = $(etol/len)")
     return etol/len, e_dict
 end
+
+"""
+    energy_value(model::J1J2p{Honeycomb{:c3v}}, A, env, params)
+
+Two-site C3v honeycomb energy for the J1-J2' model. `A.data[1]` is the
+active sublattice carrying the one-triangle `J2p` coupling, and `A.data[2]`
+is the opposite sublattice. Use a pattern such as `[1 2]`; swap the tensor
+order to put `J2p` on the other sublattice.
+"""
+function energy_value(model::J1J2p{Honeycomb{:c3v}}, A, env::Union{C3vCTMEnv,C3vTwoSiteCTMEnv}, params::iPEPSOptimize)
+    length(A.data) == 2 ||
+        throw(ArgumentError("J1J2p{Honeycomb{:c3v}} requires a two-site C3v unit cell `[A B]`."))
+    model.couplingtype == :uniform ||
+        throw(ArgumentError("J1J2p{Honeycomb{:c3v}} currently supports couplingtype=:uniform."))
+
+    A1, A2 = _c3v_site_pair(A)
+    atype = _arraytype(A1)
+
+    terms_J1 = _heisenberg_bond_terms(model, atype;
+                                      Jx=model.J1, Jy=model.J1, Jz=model.J1,
+                                      ifrotate=model.ifrotate)
+    terms_J2p = _heisenberg_bond_terms(model, atype;
+                                       Jx=model.J2p, Jy=model.J2p, Jz=model.J2p,
+                                       ifrotate=false)
+
+    if env isa C3vTwoSiteCTMEnv
+        terms_J1_BA = [(c, OR, OL) for (c, OL, OR) in terms_J1]
+        e_J1_AB, _ = _c3v_two_site_bond(env, A1, A2, terms_J1; site=1)
+        e_J1_BA, _ = _c3v_two_site_bond(env, A2, A1, terms_J1_BA; site=2)
+        e_J1 = (e_J1_AB + e_J1_BA) / 2
+        e_J2p, _ = _c3v_two_site_bond(env, A1, A1, terms_J2p; site=1)
+
+        e_dict = Dict{String, Dict{String, Any}}(
+            "bond_J1_C3v_energy" => Dict{String, Any}(
+                "1,2" => e_J1_AB,
+                "2,1" => e_J1_BA,
+            ),
+            "bond_J2p_C3v_energy" => Dict{String, Any}("1,1" => e_J2p),
+        )
+    else
+        e_J1, _ = _c3v_two_site_bond(env, A1, A2, terms_J1)
+        e_J2p, _ = _c3v_two_site_bond(env, A1, A1, terms_J2p)
+
+        e_dict = Dict{String, Dict{String, Any}}(
+            "bond_J1_C3v_energy" => Dict{String, Any}("1,2" => e_J1),
+            "bond_J2p_C3v_energy" => Dict{String, Any}("1,1" => e_J2p),
+        )
+    end
+    e = 3 * real(e_J1 + e_J2p) / 2
+
+    params.verbosity >= 3 && println("energy per site = $(e)")
+    return e, e_dict
+end

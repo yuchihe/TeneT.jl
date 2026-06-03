@@ -64,6 +64,40 @@
         @test A_sym ≈ permutedims(conj(A_sym), (1, 4, 3, 2, 5, 6))
     end
 
+    @testset "C3vKitaev_restriction rank-5" begin
+        D, d, N = 2, 2, 1
+        A = randn(ComplexF64, D, D, D, d, N)
+        A_sym = C3vKitaev_restriction(A)
+        A_sym2 = C3vKitaev_restriction(A_sym)
+        @test size(A_sym) == size(A)
+        @test isapprox(norm(A_sym), 1; atol=1e-12)
+        @test isfinite(norm(A_sym2))
+    end
+
+    @testset "C3vHeisenberg_restriction rank-5" begin
+        D, d, N = 2, 2, 1
+        A = randn(Float64, D, D, D, d, N)
+        A_sym = C3vHeisenberg_restriction(A)
+        A_sym2 = C3vHeisenberg_restriction(A_sym)
+        @test size(A_sym) == size(A)
+        @test isapprox(norm(A_sym), 1; atol=1e-12)
+        @test A_sym[:,:,:,:,1] ≈ permutedims(A_sym[:,:,:,:,1], (2, 3, 1, 4))
+        @test A_sym[:,:,:,:,1] ≈ permutedims(A_sym[:,:,:,:,1], (1, 3, 2, 4))
+        @test A_sym2 ≈ A_sym
+    end
+
+    @testset "C3vHeisenberg_restriction two-site rank-5" begin
+        D, d, N = 2, 2, 2
+        A = randn(Float64, D, D, D, d, N)
+        A_sym = C3vHeisenberg_restriction(A)
+        @test size(A_sym) == size(A)
+        @test isapprox(norm(A_sym), 1; atol=1e-12)
+        for q in 1:N
+            @test A_sym[:,:,:,:,q] ≈ permutedims(A_sym[:,:,:,:,q], (2, 3, 1, 4))
+            @test A_sym[:,:,:,:,q] ≈ permutedims(A_sym[:,:,:,:,q], (1, 3, 2, 4))
+        end
+    end
+
     # ================================================================
     # 5. _restriction_ipeps -- identity
     # ================================================================
@@ -165,6 +199,13 @@
         # Honeycomb merge: (D,D,D,D,d^2,N)
         A_hm = _init_random_ipeps(Honeycomb{:merge}(), Float64, D, d, N, Ni, Nj)
         @test size(A_hm) == (D, D, D, D, d^2, N)
+
+        # Honeycomb C3v: (D,D,D,d,N), one- or two-site only
+        A_c3v = _init_random_ipeps(Honeycomb{:c3v}(), Float64, D, d, 1, Ni, Nj)
+        @test size(A_c3v) == (D, D, D, d, 1)
+        A_c3v2 = _init_random_ipeps(Honeycomb{:c3v}(), Float64, D, d, 2, Ni, Nj)
+        @test size(A_c3v2) == (D, D, D, d, 2)
+        @test_throws ArgumentError _init_random_ipeps(Honeycomb{:c3v}(), Float64, D, d, 3, Ni, Nj)
 
         # Honeycomb brickwall: (D,1,D,D,d,N)
         A_hb = _init_random_ipeps(Honeycomb{:brickwall_h}(), Float64, D, d, N, Ni, Nj)

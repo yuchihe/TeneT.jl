@@ -10,6 +10,7 @@
         @test Honeycomb{:brickwall_h}() isa Honeycomb{:brickwall_h}
         @test Honeycomb{:merge}() isa Honeycomb{:merge}
         @test Honeycomb{:merge}() isa TeneT.AbstractLattice
+        @test Honeycomb{:c3v}() isa TeneT.AbstractLattice
     end
 
     # ---- Lattice show methods ----
@@ -17,12 +18,14 @@
         @test sprint(show, Square()) == "Square"
         @test sprint(show, Honeycomb{:brickwall_h}()) == "Honeycomb_brickwall_h"
         @test sprint(show, Honeycomb{:merge}()) == "Honeycomb_merge"
+        @test sprint(show, Honeycomb{:c3v}()) == "Honeycomb_c3v"
         @test sprint(show, Kagome()) == "Kagome"
     end
 
     # ---- ContractionMode types ----
     @testset "ContractionMode types" begin
         @test TeneT.General() isa TeneT.ContractionMode
+        @test TeneT.C3v() isa TeneT.ContractionMode
         @test TeneT.Plaquette() isa TeneT.ContractionMode
     end
 
@@ -32,6 +35,7 @@
         @test VUMPS{Plaquette{Square}}() isa TeneT.Algorithm
         @test VUMPS{C4v}() isa TeneT.Algorithm
         @test QRCTM() isa TeneT.Algorithm
+        @test C3vQRCTMRG() isa TeneT.Algorithm
     end
 
     # ---- iPEPSOptimize hierarchy ----
@@ -110,6 +114,21 @@
         @test q.ifparallel == false
         @test q.step_checkpoint === TeneT.Plain()
         @test q.forloop_iter == 1
+    end
+
+    @testset "C3vQRCTMRG default fields" begin
+        q = C3vQRCTMRG()
+        @test q.tol == 1e-10
+        @test q.maxiter == 100
+        @test q.miniter == 1
+        @test q.maxiter_ad == 10
+        @test q.miniter_ad == 1
+        @test q.show_every == 1
+        @test q.verbosity == Defaults.VERBOSE_WARN
+        @test q.ifparallel == false
+        @test q.step_checkpoint === TeneT.Plain()
+        @test q.forloop_iter == 1
+        @test q.inner_etype === nothing
     end
 
     @testset "obs_index trait" begin

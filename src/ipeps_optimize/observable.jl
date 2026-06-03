@@ -29,7 +29,7 @@ physical ξ at finite χ).
 """
 function observable(A, χ, params::iPEPSOptimize; restriction_ipeps=_restriction_ipeps,
                     cor_len_method::Symbol=:mps)
-    D = maximum(size(A)[1:4])
+    D = _ipeps_virtual_dim(A)
     rt = initialize_env(A, D, χ, params; restriction_ipeps)
 
     _G_cache[] = nothing

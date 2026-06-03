@@ -23,6 +23,7 @@ abstract type HamiltonianModel end
 # Contraction modes for VUMPS specialization
 abstract type ContractionMode end
 struct General <: ContractionMode end
+struct C3v <: ContractionMode end
 struct C4v <: ContractionMode end
 struct Plaquette{Mode} <: ContractionMode end
 Plaquette(L::AbstractLattice) = Plaquette{typeof(L)}()

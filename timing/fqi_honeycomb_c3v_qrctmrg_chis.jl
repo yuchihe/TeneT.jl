@@ -15,6 +15,10 @@ struct C3vDLEnv{CT<:AbstractMatrix,RT<:AbstractArray{<:Number,3}}
     R::RT
 end
 
+function hermitianize_corner(C)
+    return (C + adjoint(C)) ./ 2
+end
+
 function parse_chis()
     s = get(ENV, "FQI_C3V_CHIS", "32,64,128")
     return parse.(Int, split(s, ","))
@@ -48,6 +52,7 @@ function single_site_seed_env(A, chi::Int)
     R = zeros(eltype(A), chi, Q, chi)
     C[1:n, 1:n] .= C0[1:n, 1:n]
     R[1:n, :, 1:n] .= reshape(R0[1:n, :, :, 1:n], n, Q, n)
+    C .= hermitianize_corner(C)
     C ./= norm(C)
     R ./= norm(R)
     return C3vDLEnv(C, R)
@@ -86,6 +91,7 @@ function c3v_dl_step(env::C3vDLEnv, Tu, Tv; conjugate_boundary::Bool=false)
             Tu[a,b,p] * Tv[u,m,p] * V[l,m,c]
         @tensor Cnew[c,r] := Rnew[t,j,c] * Rmat[t,b] * V[b,j,r]
     end
+    Cnew = hermitianize_corner(Cnew)
     Cnew ./= norm(Cnew)
     align_phase!(Cnew, C)
     Rnew ./= norm(Rnew)

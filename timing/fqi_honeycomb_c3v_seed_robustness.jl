@@ -15,15 +15,18 @@ function random_seed_env(Tu_single, chi::Int, seed::Int, mode::Symbol)
     C = zeros(eltype(Tu_single), chi, chi)
     R = zeros(eltype(Tu_single), chi, Q, chi)
     if mode == :full
-        C .= randn(rng, eltype(Tu_single), chi, chi)
+        X = randn(rng, eltype(Tu_single), chi, chi)
+        C .= X + adjoint(X)
         R .= randn(rng, eltype(Tu_single), chi, Q, chi)
     elseif mode == :support
         n = min(chi, Q)
-        C[1:n, 1:n] .= randn(rng, eltype(Tu_single), n, n)
+        X = randn(rng, eltype(Tu_single), n, n)
+        C[1:n, 1:n] .= X + adjoint(X)
         R[1:n, :, 1:n] .= randn(rng, eltype(Tu_single), n, Q, n)
     else
         throw(ArgumentError("unknown FQI_C3V_SEED_MODE=$mode (use full or support)"))
     end
+    C .= hermitianize_corner(C)
     C ./= norm(C)
     R ./= norm(R)
     return C3vDLEnv(C, R)
@@ -103,4 +106,6 @@ function run_seed_robustness()
                      minimum(xis), maximum(xis), maximum(xis) - minimum(xis)))
 end
 
-run_seed_robustness()
+if abspath(PROGRAM_FILE) == @__FILE__
+    run_seed_robustness()
+end

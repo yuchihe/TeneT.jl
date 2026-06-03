@@ -55,6 +55,8 @@ function _c3v_corner_spectrum_error(Cnew, C)
     end
 end
 
+_c3v_hermitianize(C) = (C + adjoint(C)) ./ 2
+
 function _c3v_double_layer(M::AbstractArray)
     D = size(M, 1)
     size(M, 2) == D && size(M, 3) == D ||
@@ -62,7 +64,7 @@ function _c3v_double_layer(M::AbstractArray)
     @tensor M2[a,d,b,e,c,f] := M[a,b,c,p] * conj(M[d,e,f,p])
     M2layer = reshape(M2, D^2, D^2, D^2)
     @tensor C0[a,d,b,e] := M[a,b,c,p] * conj(M[d,e,c,p])
-    C0 = reshape(C0, D^2, D^2)
+    C0 = _c3v_hermitianize(reshape(C0, D^2, D^2))
     @tensor R0[i,k,a] := C0[i,j] * M2layer[a,j,k]
     return C0, reshape(R0, D^2, D, D, D^2)
 end
@@ -77,6 +79,7 @@ function _c3v_embed_boundary(C0, R0, chi::Int, M)
     C[1:n, 1:n] .= C0[1:n, 1:n]
     R[1:n, :, :, 1:n] .= R0[1:n, :, :, 1:n]
 
+    C = _c3v_hermitianize(C)
     C /= ignore_derivatives(() -> norm(C))
     R /= ignore_derivatives(() -> norm(R))
     return C3vCTMEnv(C, R)
@@ -148,6 +151,7 @@ function c3v_qrctmrg_step(env::C3vCTMEnv, M::Tuple, alg::C3vQRCTMRG)
     Rnew = _c3v_update_R(V, R, ML, MR; inner_etype=alg.inner_etype)
     Cnew = _c3v_update_C(Rnew, Rmat, V)
 
+    Cnew = _c3v_hermitianize(Cnew)
     Cnew /= ignore_derivatives(() -> norm(Cnew))
     Rnew /= ignore_derivatives(() -> norm(Rnew))
     err = ignore_derivatives(() -> norm(Cnew - C))

@@ -6,9 +6,9 @@ using Printf
 
 using TeneT: qr_for_ad
 
-include(raw"C:\Users\yuche\Ising\featureless_honeycomb.jl")
-
-const FQI_SOURCE = raw"C:\Users\yuche\Ising\featureless_honeycomb.jl"
+const FQI_SOURCE = get(ENV, "FQI_FEATURELESS_HONEYCOMB_PATH",
+                       raw"C:\Users\yuche\Ising\featureless_honeycomb.jl")
+include(FQI_SOURCE)
 
 struct C3vDLEnv{CT<:AbstractMatrix,RT<:AbstractArray{<:Number,3}}
     C::CT

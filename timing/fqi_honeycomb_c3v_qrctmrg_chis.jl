@@ -19,6 +19,14 @@ function hermitianize_corner(C)
     return (C + adjoint(C)) ./ 2
 end
 
+function symmetrize_edge(R)
+    chi, Q, chir = size(R)
+    D = round(Int, sqrt(Q))
+    D^2 == Q || throw(DimensionMismatch("edge middle dimension $Q is not a square double-layer dimension"))
+    R4 = reshape(R, chi, D, D, chir)
+    return reshape((R4 + permutedims(conj.(R4), (4, 3, 2, 1))) ./ 2, size(R))
+end
+
 function parse_chis()
     s = get(ENV, "FQI_C3V_CHIS", "32,64,128")
     return parse.(Int, split(s, ","))
@@ -53,6 +61,7 @@ function single_site_seed_env(A, chi::Int)
     C[1:n, 1:n] .= C0[1:n, 1:n]
     R[1:n, :, 1:n] .= reshape(R0[1:n, :, :, 1:n], n, Q, n)
     C .= hermitianize_corner(C)
+    R .= symmetrize_edge(R)
     C ./= norm(C)
     R ./= norm(R)
     return C3vDLEnv(C, R)
@@ -80,7 +89,8 @@ function corner_spectrum(C)
 end
 
 function c3v_dl_step(env::C3vDLEnv, Tu, Tv; conjugate_boundary::Bool=false)
-    C, R = env.C, env.R
+    C = hermitianize_corner(env.C)
+    R = symmetrize_edge(env.R)
     V, Rmat = c3v_dl_qr(C, R)
     if conjugate_boundary
         @tensor Rnew[t,u,c] := conj(V[i,b,t]) * R[i,a,l] *
@@ -92,6 +102,7 @@ function c3v_dl_step(env::C3vDLEnv, Tu, Tv; conjugate_boundary::Bool=false)
         @tensor Cnew[c,r] := Rnew[t,j,c] * Rmat[t,b] * V[b,j,r]
     end
     Cnew = hermitianize_corner(Cnew)
+    Rnew = symmetrize_edge(Rnew)
     Cnew ./= norm(Cnew)
     align_phase!(Cnew, C)
     Rnew ./= norm(Rnew)

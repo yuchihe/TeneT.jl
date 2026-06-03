@@ -56,6 +56,7 @@ function _c3v_corner_spectrum_error(Cnew, C)
 end
 
 _c3v_hermitianize(C) = (C + adjoint(C)) ./ 2
+_c3v_reflect_edge(R) = (R + permutedims(conj.(R), (4, 3, 2, 1))) ./ 2
 
 function _c3v_double_layer(M::AbstractArray)
     D = size(M, 1)
@@ -80,6 +81,7 @@ function _c3v_embed_boundary(C0, R0, chi::Int, M)
     R[1:n, :, :, 1:n] .= R0[1:n, :, :, 1:n]
 
     C = _c3v_hermitianize(C)
+    R = _c3v_reflect_edge(R)
     C /= ignore_derivatives(() -> norm(C))
     R /= ignore_derivatives(() -> norm(R))
     return C3vCTMEnv(C, R)
@@ -145,13 +147,15 @@ function c3v_qrctmrg_step(env::C3vCTMEnv, M::AbstractArray, alg::C3vQRCTMRG)
 end
 
 function c3v_qrctmrg_step(env::C3vCTMEnv, M::Tuple, alg::C3vQRCTMRG)
-    C, R = env.C, env.R
+    C = _c3v_hermitianize(env.C)
+    R = _c3v_reflect_edge(env.R)
     ML, MR = M
     V, Rmat = _c3v_qr(C, R)
     Rnew = _c3v_update_R(V, R, ML, MR; inner_etype=alg.inner_etype)
     Cnew = _c3v_update_C(Rnew, Rmat, V)
 
     Cnew = _c3v_hermitianize(Cnew)
+    Rnew = _c3v_reflect_edge(Rnew)
     Cnew /= ignore_derivatives(() -> norm(Cnew))
     Rnew /= ignore_derivatives(() -> norm(Rnew))
     err = ignore_derivatives(() -> norm(Cnew - C))

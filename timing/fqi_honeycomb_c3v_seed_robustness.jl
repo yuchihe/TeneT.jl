@@ -27,6 +27,7 @@ function random_seed_env(Tu_single, chi::Int, seed::Int, mode::Symbol)
         throw(ArgumentError("unknown FQI_C3V_SEED_MODE=$mode (use full or support)"))
     end
     C .= hermitianize_corner(C)
+    R .= symmetrize_edge(R)
     C ./= norm(C)
     R ./= norm(R)
     return C3vDLEnv(C, R)
